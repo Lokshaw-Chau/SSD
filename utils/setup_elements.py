@@ -1,5 +1,6 @@
 import torch
 from models.resnet import Reduced_ResNet18, SupConResNet
+from models.convnet import ConvNet
 from torchvision import transforms
 import torch.nn as nn
 
@@ -57,7 +58,8 @@ def setup_architecture(params):
         from models.ndpm.ndpm import Ndpm
         return Ndpm(params)
     if params.data == 'cifar100':
-        return Reduced_ResNet18(nclass)
+        #return Reduced_ResNet18(nclass)
+        return ConvNet(nclass)
     elif params.data == 'cifar10':
         return Reduced_ResNet18(nclass)
     elif params.data == 'core50':
@@ -76,6 +78,7 @@ def setup_opt(optimizer, model, lr, wd):
     if optimizer == 'SGD':
         optim = torch.optim.SGD(model.parameters(),
                                 lr=lr,
+                                momentum=0.9,
                                 weight_decay=wd)
     elif optimizer == 'Adam':
         optim = torch.optim.Adam(model.parameters(),

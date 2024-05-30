@@ -12,10 +12,13 @@ from agents.cndpm import Cndpm
 from agents.lwf import Lwf
 from agents.icarl import Icarl
 from agents.scr import SupContrastReplay
+from agents.gdumb_dd import GDumbDD
 from agents.summarize import SummarizeContrastReplay
+from agents.ssd import SummarizeStreamData
 from utils.buffer.random_retrieve import Random_retrieve, BalancedRetrieve
 from utils.buffer.reservoir_update import Reservoir_update
 from utils.buffer.summarize_update import SummarizeUpdate
+from utils.buffer.ssd_update import SSDUpdate
 from utils.buffer.mir_retrieve import MIR_retrieve
 from utils.buffer.gss_greedy_update import GSSGreedyUpdate
 from utils.buffer.aser_retrieve import ASER_retrieve
@@ -42,6 +45,8 @@ agents = {
     'GDUMB': Gdumb,
     'SCR': SupContrastReplay,
     'SSCR': SummarizeContrastReplay,
+    'SSD': SummarizeStreamData,
+    'GDUMBDD': GDumbDD,
 }
 
 retrieve_methods = {
@@ -57,5 +62,6 @@ update_methods = {
     'GSS': GSSGreedyUpdate,
     'ASER': ASER_update,
     'summarize': SummarizeUpdate,
+    'SSD': SSDUpdate,
 }
 

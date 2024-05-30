@@ -1,9 +1,5 @@
 import torch
 import torch.nn as nn
-import numpy as np
-import torch.nn.functional as F
-
-
 class ConvNet(nn.Module):
     def __init__(self,
                  num_classes,
@@ -14,6 +10,7 @@ class ConvNet(nn.Module):
                  net_act='relu',
                  net_pooling='avgpooling',
                  im_size=(32, 32)):
+        # print(f"Define Convnet (depth {net_depth}, width {net_width}, norm {net_norm})")
         super(ConvNet, self).__init__()
         if net_act == 'sigmoid':
             self.net_act = nn.Sigmoid()
@@ -39,7 +36,6 @@ class ConvNet(nn.Module):
         self.layers, shape_feat = self._make_layers(channel, net_width, net_depth, net_norm,
                                                     net_pooling, im_size)
         num_feat = shape_feat[0] * shape_feat[1] * shape_feat[2]
-        self.num_feat = num_feat
         self.classifier = nn.Linear(num_feat, num_classes)
 
     def forward(self, x, return_features=False):
@@ -51,6 +47,7 @@ class ConvNet(nn.Module):
             if len(self.layers['pool']) > 0:
                 x = self.layers['pool'][d](x)
 
+        # x = nn.functional.avg_pool2d(x, x.shape[-1])
         out = x.view(x.shape[0], -1)
         logit = self.classifier(out)
 
@@ -59,7 +56,7 @@ class ConvNet(nn.Module):
         else:
             return logit
 
-    def features(self, x):
+    def embed(self, x):
         for d in range(self.depth):
             x = self.layers['conv'][d](x)
             if len(self.layers['norm']) > 0:
@@ -68,9 +65,14 @@ class ConvNet(nn.Module):
             if len(self.layers['pool']) > 0:
                 x = self.layers['pool'][d](x)
 
+        # x = nn.functional.avg_pool2d(x, x.shape[-1])
         out = x.view(x.shape[0], -1)
 
         return out
+    
+    def embed_to_logit(self, x):
+        logit = self.classifier(x)
+        return logit   
 
     def get_feature(self, x, idx_from, idx_to=-1, return_prob=False, return_logit=False):
         if idx_to == -1:
@@ -85,6 +87,7 @@ class ConvNet(nn.Module):
             if self.net_pooling:
                 x = self.layers['pool'][d](x)
             features.append(x)
+            # print("length:", len(features))
             if idx_to < len(features):
                 return features[idx_from:idx_to + 1]
 
@@ -101,6 +104,7 @@ class ConvNet(nn.Module):
             return features[idx_from:idx_to + 1]
 
     def _get_normlayer(self, net_norm, shape_feat):
+        # shape_feat = (c * h * w)
         if net_norm == 'batch':
             norm = nn.BatchNorm2d(shape_feat[0], affine=True)
         elif net_norm == 'layer':

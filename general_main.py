@@ -9,6 +9,7 @@ from utils.utils import boolean_string
 from utils.logging import Logger
 
 
+
 def main(args):
     print(args)
     # set up seed
@@ -45,8 +46,6 @@ if __name__ == "__main__":
                         help='Number of batches used for validation (default: %(default)s)')
     parser.add_argument('--num_runs_val', dest='num_runs_val', default=3, type=int,
                         help='Number of runs for validation (default: %(default)s)')
-    parser.add_argument('--num_classes_per_task', default=10, type=int)
-    parser.add_argument('--images_per_class', default=10, type=int)
     parser.add_argument('--error_analysis', dest='error_analysis', default=False, type=boolean_string,
                         help='Perform error analysis (default: %(default)s)')
     parser.add_argument('--verbose', type=boolean_string, default=True,
@@ -57,9 +56,9 @@ if __name__ == "__main__":
 
     ########################Agent#########################
     parser.add_argument('--agent', dest='agent', default='ER',
-                        choices=['ER', 'EWC', 'AGEM', 'CNDPM', 'LWF', 'ICARL', 'GDUMB', 'ASER', 'SCR', 'SSCR'],
+                        choices=['ER', 'EWC', 'AGEM', 'CNDPM', 'LWF', 'ICARL', 'GDUMB', 'ASER', 'SCR', 'SSCR', 'SSD', 'GDUMBDD'],
                         help='Agent selection  (default: %(default)s)')
-    parser.add_argument('--update', dest='update', default='random', choices=['random', 'GSS', 'ASER', 'summarize'],
+    parser.add_argument('--update', dest='update', default='random', choices=['random', 'GSS', 'ASER', 'summarize', 'SSD'],
                         help='Update method  (default: %(default)s)')
     parser.add_argument('--retrieve', dest='retrieve', default='random', choices=['MIR', 'random', 'ASER', 'match', 'mem_match'],
                         help='Retrieve method  (default: %(default)s)')
@@ -67,7 +66,7 @@ if __name__ == "__main__":
     ########################Optimizer#########################
     parser.add_argument('--optimizer', dest='optimizer', default='SGD', choices=['SGD', 'Adam'],
                         help='Optimizer (default: %(default)s)')
-    parser.add_argument('--learning_rate', dest='learning_rate', default=0.1,
+    parser.add_argument('--learning_rate', dest='learning_rate', default=0.01,
                         type=float,
                         help='Learning_rate (default: %(default)s)')
     parser.add_argument('--epoch', dest='epoch', default=1,
@@ -79,7 +78,7 @@ if __name__ == "__main__":
     parser.add_argument('--test_batch', dest='test_batch', default=128,
                         type=int,
                         help='Test batch size (default: %(default)s)')
-    parser.add_argument('--weight_decay', dest='weight_decay', type=float, default=0,
+    parser.add_argument('--weight_decay', dest='weight_decay', type=float, default=0.0005,
                         help='weight_decay')
 
     ########################Data#########################
@@ -116,7 +115,7 @@ if __name__ == "__main__":
                         help='The matching target between real and synthesized images')
     parser.add_argument('--metric', default='mse', type=str,
                         help='The distance metric')
-    parser.add_argument('--lr_img', default=2e-4, type=float,
+    parser.add_argument('--lr_img', default=1, type=float,
                         help='The learning rate for updating images that are being summarized')
     parser.add_argument('--mem_weight', default=1, type=float,
                         help='The weight for relationship matching')
@@ -124,6 +123,14 @@ if __name__ == "__main__":
                         help='Number of samples for calculating relationship distance')
     parser.add_argument('--mem_extra', default=1, type=int,
                         help='Whether the final loss is direct sum or weighted sum')
+    ########################DataSet Distillation#########################
+    parser.add_argument('--outer_loop', dest='outer_loop', default=20, type=int, help='Outer loop')
+    parser.add_argument('--inner_loop', dest='inner_loop', default=100, type=int, help='Inner loop')
+    parser.add_argument('--num_classes_per_task', default=10, type=int)
+    parser.add_argument('--images_per_class', default=10, type=int)
+    parser.add_argument('--distill_iteration', default=20000, type=int)
+    parser.add_argument('--inner_model', default='ConvNetBN', type=str)
+
 
     ########################ER#########################
     parser.add_argument('--mem_size', dest='mem_size', default=10000,
@@ -174,7 +181,7 @@ if __name__ == "__main__":
     parser.add_argument('--log_alpha', dest='log_alpha', default=-300, type=float, help='Prior log alpha')
 
     ########################GDumb#########################
-    parser.add_argument('--minlr', dest='minlr', default=0.0005, type=float, help='Minimal learning rate')
+    parser.add_argument('--minlr', dest='minlr', default=0.0001, type=float, help='Minimal learning rate')
     parser.add_argument('--clip', dest='clip', default=10., type=float,
                         help='value for gradient clipping')
     parser.add_argument('--mem_epoch', dest='mem_epoch', default=70, type=int, help='Epochs to train for memory')

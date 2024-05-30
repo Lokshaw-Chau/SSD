@@ -34,6 +34,7 @@ class continuum(object):
     def new_run(self):
         self.cur_task = 0
         self.cur_run += 1
+        self.global_step = 0
         self.data_object.new_run(cur_run=self.cur_run)
 
 

@@ -8,6 +8,7 @@ from utils import name_match
 from utils.utils import maybe_cuda
 from utils.buffer.buffer_utils import BufferClassTracker
 from utils.setup_elements import n_classes
+from .buffer_utils import random_retrieve
 
 
 class Buffer(torch.nn.Module):

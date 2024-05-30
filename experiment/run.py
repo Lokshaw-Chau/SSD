@@ -12,6 +12,7 @@ from utils.io import load_yaml, save_dataframe_csv, check_ram_usage
 import pandas as pd
 import os
 import pickle
+from torch.utils.tensorboard import SummaryWriter   
 
 
 def multiple_run(params, store=False, save_path=None):
@@ -35,6 +36,7 @@ def multiple_run(params, store=False, save_path=None):
         tmp_acc = []
         run_start = time.time()
         data_continuum.new_run()
+        params.writer = SummaryWriter(os.path.join(params.logs_dir, params.data+'_'+params.tag))
         model = setup_architecture(params)
         model = maybe_cuda(model, params.cuda)
         opt = setup_opt(params.optimizer, model, params.learning_rate, params.weight_decay)
@@ -44,11 +46,12 @@ def multiple_run(params, store=False, save_path=None):
         test_loaders = setup_test_loader(data_continuum.test_data(), params)
         if params.online:
             for i, (x_train, y_train, labels) in enumerate(data_continuum):
-                print("-----------run {} training batch {}-------------".format(run, i))
+                print("-----------run {} training task {}-------------".format(run, i))
                 print('size: {}, {}'.format(x_train.shape, y_train.shape))
                 agent.train_learner(x_train, y_train, labels=labels)
                 acc_array = agent.evaluate(test_loaders)
                 tmp_acc.append(acc_array)
+                params.writer.add_scalar('end_acc', np.sum(acc_array) / (i+1), i)
             run_end = time.time()
             print(
                 "-----------run {}-----------avg_end_acc {}-----------train time {}".format(run, np.mean(tmp_acc[-1]),

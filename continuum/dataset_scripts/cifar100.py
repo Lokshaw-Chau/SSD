@@ -1,5 +1,5 @@
 import numpy as np
-from torchvision import datasets
+from torchvision import datasets, transforms
 from continuum.data_utils import create_task_composition, load_task_with_labels
 from continuum.dataset_scripts.dataset_base import DatasetBase
 from continuum.non_stationary import construct_ns_multiple_wrapper, test_ns
@@ -16,10 +16,11 @@ class CIFAR100(DatasetBase):
 
 
     def download_load(self):
-        dataset_train = datasets.CIFAR100(root=self.root, train=True, download=True)
+        transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=[0.5071, 0.4866, 0.4409], std=[0.2673, 0.2564, 0.2762])])
+        dataset_train = datasets.CIFAR100(root=self.root, train=True, download=True, transform=transform)
         self.train_data = dataset_train.data
         self.train_label = np.array(dataset_train.targets)
-        dataset_test = datasets.CIFAR100(root=self.root, train=False, download=True)
+        dataset_test = datasets.CIFAR100(root=self.root, train=False, download=True, transform=transform)
         self.test_data = dataset_test.data
         self.test_label = np.array(dataset_test.targets)
 
