@@ -240,10 +240,37 @@ class SummarizeUpdate(object):
         condense_indices = []
         for lab in buffer.condense_dict.keys():
             condense_indices += buffer.condense_dict[lab]
-        r_x, r_y = random_retrieve(buffer, 10, excl_indices=condense_indices)
-        r_y = torch.tensor([self.label_dict[lab.item()] for lab in r_y]).cuda()
-        r_x = torch.cat((x, r_x), dim=0)
-        r_y = torch.cat((y, r_y)).long()
+        
+        if self.params.estimator_update_mode == 0:
+            # origin ssd: update by stream & buffered real data
+            r_x, r_y = random_retrieve(buffer, 10, excl_indices=condense_indices)
+            r_y = torch.tensor([self.label_dict[lab.item()] for lab in r_y]).cuda()
+            r_x = torch.cat((x, r_x), dim=0)
+            r_y = torch.cat((y, r_y)).long()
+
+        elif self.params.estimator_update_mode == 1:
+            # update by summerized data
+            filled_idx = np.arange(buffer.current_index)
+            excl_idx = np.setdiff1d(filled_idx, np.array(condense_indices))
+            r_x, r_y = random_retrieve(buffer, 10, excl_indices=excl_idx)
+            r_y = torch.tensor([self.label_dict[lab.item()] for lab in r_y]).cuda()
+        
+        elif self.params.estimator_update_mode == 2:
+            # update by stream & all buffer data except current summerizing data
+            current_condense_indices = []
+            for lab in labels:
+                current_condense_indices += buffer.condense_dict[lab]
+            r_x, r_y = random_retrieve(buffer, 10, excl_indices=current_condense_indices)
+            r_y = torch.tensor([self.label_dict[lab.item()] for lab in r_y]).cuda()
+            r_x = torch.cat((x, r_x), dim=0)
+            r_y = torch.cat((y, r_y)).long()
+            
+        
+        elif self.params.estimator_update_mode == 3:
+            # update by only stream data
+            r_x = x
+            r_y = y
+        
         random_indices = torch.randperm(len(r_x))
         r_x = r_x[random_indices]
         r_y = r_y[random_indices]

@@ -124,6 +124,8 @@ if __name__ == "__main__":
                         help='Number of samples for calculating relationship distance')
     parser.add_argument('--mem_extra', default=1, type=int,
                         help='Whether the final loss is direct sum or weighted sum')
+    parser.add_argument('--estimator_update_mode', default=0, type=int,
+                        help='Update estimator mode')
 
     ########################ER#########################
     parser.add_argument('--mem_size', dest='mem_size', default=10000,

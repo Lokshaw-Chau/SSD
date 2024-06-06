@@ -43,13 +43,17 @@ def multiple_run(params, store=False, save_path=None):
         # prepare val data loader
         test_loaders = setup_test_loader(data_continuum.test_data(), params)
         if params.online:
+            end_acc_list = []
             for i, (x_train, y_train, labels) in enumerate(data_continuum):
                 print("-----------run {} training batch {}-------------".format(run, i))
                 print('size: {}, {}'.format(x_train.shape, y_train.shape))
                 agent.train_learner(x_train, y_train, labels=labels)
                 acc_array = agent.evaluate(test_loaders)
                 tmp_acc.append(acc_array)
+                end_acc = np.sum(acc_array) / (i + 1)
+                end_acc_list.append(end_acc)
             run_end = time.time()
+            print('-----------run {}-----------task_acc', end_acc_list)
             print(
                 "-----------run {}-----------avg_end_acc {}-----------train time {}".format(run, np.mean(tmp_acc[-1]),
                                                                                run_end - run_start))
