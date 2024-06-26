@@ -2,62 +2,67 @@ import torch
 from torch.utils import data
 import math
 from agents.base import ContinualLearner
-from continuum.data_utils import dataset_transform
+from utils.buffer.buffer import Buffer, DynamicBuffer
+from continuum.data_utils import dataset_transform, BalancedSampler
+from utils.setup_elements import transforms_match, input_size_match
 from utils.setup_elements import transforms_match, setup_architecture, setup_opt
+from kornia.augmentation import RandomResizedCrop, RandomHorizontalFlip, ColorJitter, RandomGrayscale
 from utils.utils import maybe_cuda, EarlyStopping
 import numpy as np
 import random
+import torch.nn as nn
 
 
-class Gdumb(ContinualLearner):
+class GdumbSSD(ContinualLearner):
     def __init__(self, model, opt, params):
-        super(Gdumb, self).__init__(model, opt, params)
-        self.mem_img = {}
-        self.mem_c = {}
-        #self.early_stopping = EarlyStopping(self.params.min_delta, self.params.patience, self.params.cumulative_delta)
-
-    def greedy_balancing_update(self, x, y):
-        k_c = self.params.mem_size // max(1, len(self.mem_img))
-        if y not in self.mem_img or self.mem_c[y] < k_c:
-            if sum(self.mem_c.values()) >= self.params.mem_size:
-                cls_max = max(self.mem_c.items(), key=lambda k:k[1])[0]
-                idx = random.randrange(self.mem_c[cls_max])
-                self.mem_img[cls_max].pop(idx)
-                self.mem_c[cls_max] -= 1
-            if y not in self.mem_img:
-                self.mem_img[y] = []
-                self.mem_c[y] = 0
-            self.mem_img[y].append(x)
-            self.mem_c[y] += 1
+        super(GdumbSSD, self).__init__(model, opt, params)
+        self.buffer = DynamicBuffer(model, params)
+        self.mem_size = params.mem_size
+        self.eps_mem_batch = params.eps_mem_batch
+        self.mem_iters = params.mem_iters
+        self.queue_size = params.queue_size
+        self.transform = nn.Sequential(
+            RandomResizedCrop(size=(input_size_match[self.params.data][1], input_size_match[self.params.data][2]), scale=(0.2, 1.)),
+            RandomHorizontalFlip(),
+            ColorJitter(0.4, 0.4, 0.4, 0.1, p=0.8),
+            RandomGrayscale(p=0.2)
+        )
 
     def train_learner(self, x_train, y_train, labels):
         self.before_train(x_train, y_train)
         # set up loader
         train_dataset = dataset_transform(x_train, y_train, transform=transforms_match[self.data])
-        train_loader = data.DataLoader(train_dataset, batch_size=self.batch, shuffle=True, num_workers=0,
-                                       drop_last=True)
+        train_sampler = BalancedSampler(x_train, y_train, self.batch)
+        train_loader = data.DataLoader(train_dataset, batch_size=self.batch, num_workers=0,
+                                       drop_last=True, sampler=train_sampler)
+        self.buffer.new_condense_task(labels)
 
+        aff_x = []
+        aff_y = []
+        step=0
         for i, batch_data in enumerate(train_loader):
             # batch update
             batch_x, batch_y = batch_data
             batch_x = maybe_cuda(batch_x, self.cuda)
             batch_y = maybe_cuda(batch_y, self.cuda)
+            
+            aff_x.append(batch_x)
+            aff_y.append(batch_y)
+            if len(aff_x) > self.queue_size:
+                aff_x.pop(0)
+                aff_y.pop(0)
             # update mem
-            for j in range(len(batch_x)):
-                self.greedy_balancing_update(batch_x[j], batch_y[j].item())
+            loss = self.buffer.update(batch_x, batch_y, aff_x=aff_x, aff_y=aff_y, update_index=i, transform=self.transform)
+            if loss is not None:
+                self.params.logger.add_scalar('img_loss', loss, step)
+                step += 1
         #self.early_stopping.reset()
         self.train_mem()
         self.after_train()
 
     def train_mem(self):
-        mem_x = []
-        mem_y = []
-        for i in self.mem_img.keys():
-            mem_x += self.mem_img[i]
-            mem_y += [i] * self.mem_c[i]
-
-        mem_x = torch.stack(mem_x)
-        mem_y = torch.LongTensor(mem_y)
+        mem_x = self.buffer.buffer_img
+        mem_y = self.buffer.buffer_label
         self.model = setup_architecture(self.params)
         self.model = maybe_cuda(self.model, self.cuda)
         opt = setup_opt(self.params.optimizer, self.model, self.params.learning_rate, self.params.weight_decay)

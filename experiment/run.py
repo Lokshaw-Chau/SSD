@@ -12,6 +12,7 @@ from utils.io import load_yaml, save_dataframe_csv, check_ram_usage
 import pandas as pd
 import os
 import pickle
+from torch.utils.tensorboard import SummaryWriter
 
 
 def multiple_run(params, store=False, save_path=None):
@@ -21,6 +22,7 @@ def multiple_run(params, store=False, save_path=None):
     data_continuum = continuum(params.data, params.cl_type, params)
     data_end = time.time()
     print('data setup time: {}'.format(data_end - start))
+    params.logger = SummaryWriter(os.path.join(params.logs_dir, params.data+'_'+params.tag))
 
     if store:
         result_path = load_yaml('config/global.yml', key='path')['result']

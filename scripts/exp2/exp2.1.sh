@@ -1,6 +1,5 @@
-mode=3
-tag=exp1_3
-device=5
+tag=exp2_1
+device=4
 
 CUDA_VISIBLE_DEVICES=$device python general_main.py \
     --data cifar100 \
@@ -19,8 +18,9 @@ CUDA_VISIBLE_DEVICES=$device python general_main.py \
     --summarize_interval 6 \
     --queue_size 64 \
     --mem_weight 1 \
-    --num_runs 5 \
-    --estimator_update_mode $mode
+    --num_runs 3 \
+    --reverse_match_loss True
+
 
 CUDA_VISIBLE_DEVICES=$device python general_main.py \
     --data cifar100 \
@@ -39,8 +39,8 @@ CUDA_VISIBLE_DEVICES=$device python general_main.py \
     --summarize_interval 6 \
     --queue_size 64 \
     --mem_weight 1 \
-    --num_runs 5 \
-    --estimator_update_mode $mode 
+    --num_runs 3 \
+    --reverse_match_loss True
 
 CUDA_VISIBLE_DEVICES=$device python general_main.py \
     --data cifar100 \
@@ -59,5 +59,5 @@ CUDA_VISIBLE_DEVICES=$device python general_main.py \
     --summarize_interval 6 \
     --queue_size 64 \
     --mem_weight 1 \
-    --num_runs 5 \
-    --estimator_update_mode $mode 
+    --num_runs 3 \
+    --reverse_match_loss True

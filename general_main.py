@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
     ########################Agent#########################
     parser.add_argument('--agent', dest='agent', default='ER',
-                        choices=['ER', 'EWC', 'AGEM', 'CNDPM', 'LWF', 'ICARL', 'GDUMB', 'ASER', 'SCR', 'SSCR'],
+                        choices=['ER', 'EWC', 'AGEM', 'CNDPM', 'LWF', 'ICARL', 'GDUMB', 'ASER', 'SCR', 'SSCR','GDUMBSSD'],
                         help='Agent selection  (default: %(default)s)')
     parser.add_argument('--update', dest='update', default='random', choices=['random', 'GSS', 'ASER', 'summarize'],
                         help='Update method  (default: %(default)s)')
@@ -126,6 +126,8 @@ if __name__ == "__main__":
                         help='Whether the final loss is direct sum or weighted sum')
     parser.add_argument('--estimator_update_mode', default=0, type=int,
                         help='Update estimator mode')
+    parser.add_argument('--pretrain_iters', default=0, type=int)
+    # parser.add_argument('--reverse_match_loss', default=False, type=boolean_string)
 
     ########################ER#########################
     parser.add_argument('--mem_size', dest='mem_size', default=10000,

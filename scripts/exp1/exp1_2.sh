@@ -19,7 +19,7 @@ CUDA_VISIBLE_DEVICES=$device python general_main.py \
     --summarize_interval 6 \
     --queue_size 64 \
     --mem_weight 1 \
-    --num_runs 3 \
+    --num_runs 5 \
     --estimator_update_mode $mode
 
 CUDA_VISIBLE_DEVICES=$device python general_main.py \
@@ -39,7 +39,7 @@ CUDA_VISIBLE_DEVICES=$device python general_main.py \
     --summarize_interval 6 \
     --queue_size 64 \
     --mem_weight 1 \
-    --num_runs 3 \
+    --num_runs 5 \
     --estimator_update_mode $mode 
 
 CUDA_VISIBLE_DEVICES=$device python general_main.py \
@@ -59,5 +59,5 @@ CUDA_VISIBLE_DEVICES=$device python general_main.py \
     --summarize_interval 6 \
     --queue_size 64 \
     --mem_weight 1 \
-    --num_runs 3 \
+    --num_runs 5 \
     --estimator_update_mode $mode 

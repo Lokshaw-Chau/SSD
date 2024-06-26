@@ -13,6 +13,7 @@ from agents.lwf import Lwf
 from agents.icarl import Icarl
 from agents.scr import SupContrastReplay
 from agents.summarize import SummarizeContrastReplay
+from agents.gdumb_ssd import GdumbSSD
 from utils.buffer.random_retrieve import Random_retrieve, BalancedRetrieve
 from utils.buffer.reservoir_update import Reservoir_update
 from utils.buffer.summarize_update import SummarizeUpdate
@@ -42,6 +43,7 @@ agents = {
     'GDUMB': Gdumb,
     'SCR': SupContrastReplay,
     'SSCR': SummarizeContrastReplay,
+    'GDUMBSSD': GdumbSSD
 }
 
 retrieve_methods = {

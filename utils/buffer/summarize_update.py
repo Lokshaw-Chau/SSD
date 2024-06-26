@@ -9,7 +9,63 @@ from torchvision.utils import save_image
 from models.convnet import ConvNet
 from .buffer_utils import random_retrieve
 from .augment import DiffAug
+import copy
 
+class ModelPool:
+    def __init__(self, args):    
+        self.online_iteration = args.online_iteration
+        self.num_models = args.num_models
+
+        # model func
+        # TODO: pass args to model
+        self.model_func = lambda _: ConvNet(args.num_classes, im_size=args.im_size).cuda()
+
+        # opt func
+        if args.online_opt == "sgd":
+            self.opt_func = lambda param: torch.optim.SGD(param, lr=args.online_lr, momentum=0.9, weight_decay=args.online_wd)
+        elif args.online_opt == "adam":
+            self.opt_func = lambda param: torch.optim.AdamW(param, lr=args.online_lr, weight_decay=args.online_wd)
+        else:
+            raise NotImplementedError
+        
+        self.iterations = [ 0 ] *self.num_models
+        self.models = [ self.model_func(None) for _ in range(self.num_models) ]
+        self.opts = [ self.opt_func(self.models[i].parameters()) for i in range(self.num_models) ]
+
+    def init(self, x_syn, y_syn):
+        for idx in range(self.num_models):
+            online_iteration = np.random.randint(1, self.online_iteration)
+            self.iterations[idx] = online_iteration
+            model = self.models[idx]
+            opt = self.opts[idx]
+            model.train()
+            print(f"{idx}-th model init")
+            for _ in trange(online_iteration):
+                opt.zero_grad()
+                loss = F.mse_loss(model(x_syn), y_syn)
+                loss.backward()
+                opt.step()
+
+    def update(self, idx, x_syn, y_syn):
+        # reset
+        if self.iterations[idx] >= self.online_iteration:
+            self.models[idx] = self.model_func(None)
+            self.opts[idx] = self.opt_func(self.models[idx].parameters())            
+            model = self.models[idx]
+            opt = self.opts[idx]
+
+        # train the model for 1 step
+        else:
+            self.iterations[idx] = self.iterations[idx] + 1
+            model = self.models[idx]
+            opt = self.opts[idx]
+
+            model.train()
+            opt.zero_grad()
+            # FIXME: CE or MSE ?
+            loss = F.mse_loss(model(x_syn), y_syn)
+            loss.backward()
+            opt.step()
 
 def condense_retrieve(buffer, num_samples, excl_labels=None, incl_labels=None):
     '''Retrieve condensed images from the memory
@@ -55,6 +111,7 @@ class SummarizeUpdate(object):
         self.params = params
         self.label_dict = {}
         self.optim_flag = True
+        self.current_labels = []
 
     def new_task(self, num_classes, labels):
         '''Initialize the label dict for model training
@@ -65,10 +122,11 @@ class SummarizeUpdate(object):
             im_size = (64, 64)
         else:
             im_size = (32, 32)
+        # TODO: init model pool
         self.model = ConvNet(num_classes, im_size=im_size).cuda()
         self.optimizer_model = torch.optim.SGD(self.model.parameters(), lr=0.01, momentum=0.9)
         for idx, label in enumerate(labels):
-            self.label_dict[label] = idx + num_classes - len(labels)
+            self.label_dict[label] = idx + num_classes - len(labels)           
         self.new_labels = labels
         self.optim_flag = True
 
@@ -124,9 +182,12 @@ class SummarizeUpdate(object):
         if update_index % self.params.summarize_interval != 0:
             condense_flag = False
 
+        avg_loss = None
+
         # conduct sample condense
         if condense_flag:
             labelset = set(y.cpu().numpy())
+            self.current_labels = list(labelset)
             # initialize the optimization target at the first iteration of new tasks
             if self.optim_flag:
                 self.condense_x = [buffer.buffer_img[buffer.condense_dict[c]] for c in labelset]
@@ -168,6 +229,9 @@ class SummarizeUpdate(object):
         # update the matching model
         y = torch.tensor([self.label_dict[lab.item()] for lab in y]).cuda()
         self.retrieve_update_model(x, y, buffer, transform)
+        # TODO: or update model pool
+
+        return avg_loss
 
     def match_loss(self, img_real, img_syn, lab_real, lab_syn, buffer):
         loss = 0.
@@ -191,6 +255,7 @@ class SummarizeUpdate(object):
             )
         else:
             mem_loss = 0
+        # TODO: FrePo step loss
 
         # options of feature distribution matching and gradient matching
         if 'feat' in self.params.match:
@@ -209,8 +274,9 @@ class SummarizeUpdate(object):
                 if len(gwr.shape) == 1 or len(gwr.shape) == 2:
                     continue
                 loss += dist(gwr, gws, self.params.metric)
-        if 'feat' in self.params.match and 'grad' in self.params.match:
-            loss = loss / 2.0
+
+        # if 'feat' in self.params.match and 'grad' in self.params.match:
+        #     loss = loss / 2.0
 
         if mem_loss > 0:
             if self.params.mem_extra == 1:
@@ -236,7 +302,7 @@ class SummarizeUpdate(object):
     def retrieve_update_model(self, x, y, buffer, transform):
         '''Model updating with images of previous tasks
         '''
-        labels = list(set(y.cpu().numpy()))
+        # labels = list(set(y.cpu().numpy()))
         condense_indices = []
         for lab in buffer.condense_dict.keys():
             condense_indices += buffer.condense_dict[lab]
@@ -258,7 +324,7 @@ class SummarizeUpdate(object):
         elif self.params.estimator_update_mode == 2:
             # update by stream & all buffer data except current summerizing data
             current_condense_indices = []
-            for lab in labels:
+            for lab in self.current_labels:
                 current_condense_indices += buffer.condense_dict[lab]
             r_x, r_y = random_retrieve(buffer, 10, excl_indices=current_condense_indices)
             r_y = torch.tensor([self.label_dict[lab.item()] for lab in r_y]).cuda()
@@ -270,6 +336,37 @@ class SummarizeUpdate(object):
             # update by only stream data
             r_x = x
             r_y = y
+
+        elif self.params.estimator_update_mode == 4:
+            # update with mixup perturbation
+            current_condense_indices = []
+            for lab in self.current_labels:
+                current_condense_indices += buffer.condense_dict[lab]
+            r_x, r_y = random_retrieve(buffer, 10, excl_indices=current_condense_indices)
+            r_y = torch.tensor([self.label_dict[lab.item()] for lab in r_y]).cuda()
+            if len(r_y) == 10:
+                lambda_param = torch.distributions.beta.Beta(0.2, 0.2).sample([x.size(0)]).cuda()
+                lambda_param = torch.clamp(lambda_param, min=1e-7)
+                param = lambda_param.unsqueeze(1).unsqueeze(1).unsqueeze(1)
+                aug_x = param * x + (1 - param) * r_x
+                r_x = torch.cat((x, aug_x), dim=0)
+                # turn to one-hot
+                y = F.one_hot(y, num_classes=len(self.label_dict))
+                r_y = F.one_hot(r_y, num_classes=len(self.label_dict))
+                param = lambda_param.unsqueeze(1)
+                aug_y = param * y + (1 - param) * r_y
+                r_y = torch.cat((y, aug_y), dim=0)
+                # retrieve past origin data
+                past_ori_x, past_ori_y = random_retrieve(buffer, 10, excl_indices=condense_indices)
+                past_ori_y = torch.tensor([self.label_dict[lab.item()] for lab in past_ori_y]).cuda()
+                if len(past_ori_y) !=0:
+                    past_ori_y = F.one_hot(past_ori_y, num_classes=len(self.label_dict))
+                    r_x = torch.cat((r_x, past_ori_x), dim=0)
+                    r_y = torch.cat((r_y, past_ori_y), dim=0)
+
+            else:
+                r_x = x
+                r_y = y
         
         random_indices = torch.randperm(len(r_x))
         r_x = r_x[random_indices]

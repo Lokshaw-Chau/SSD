@@ -1,6 +1,6 @@
-mode=3
-tag=exp1_3
-device=5
+mode=0
+tag=exp1_0worm
+device=4
 
 CUDA_VISIBLE_DEVICES=$device python general_main.py \
     --data cifar100 \
@@ -18,7 +18,7 @@ CUDA_VISIBLE_DEVICES=$device python general_main.py \
     --lr_img 2e-4 \
     --summarize_interval 6 \
     --queue_size 64 \
-    --mem_weight 1 \
+    --mem_weight 0 \
     --num_runs 5 \
     --estimator_update_mode $mode
 
@@ -38,7 +38,7 @@ CUDA_VISIBLE_DEVICES=$device python general_main.py \
     --lr_img 1e-3 \
     --summarize_interval 6 \
     --queue_size 64 \
-    --mem_weight 1 \
+    --mem_weight 0 \
     --num_runs 5 \
     --estimator_update_mode $mode 
 
@@ -58,6 +58,6 @@ CUDA_VISIBLE_DEVICES=$device python general_main.py \
     --lr_img 4e-3 \
     --summarize_interval 6 \
     --queue_size 64 \
-    --mem_weight 1 \
+    --mem_weight 0 \
     --num_runs 5 \
     --estimator_update_mode $mode 

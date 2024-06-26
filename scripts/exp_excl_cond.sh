@@ -1,6 +1,6 @@
-mode=3
-tag=exp1_3
-device=5
+mode=0
+tag=excl_cur_condense
+device=4
 
 CUDA_VISIBLE_DEVICES=$device python general_main.py \
     --data cifar100 \
